@@ -34,6 +34,8 @@ df = df %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   mutate(SCALED_AWARENESS = scale(HAVE_YOU_HEARD_THIS))
 
+df$MORPHEME = relevel(as_factor(df$MORPHEME), ref="ra")
+
 widen <- function(df, values_from) {
   return(df %>%
     pivot_wider(id_cols=c("RESPONDENT_ID", "AGE", "GENDER", "REGION",
