@@ -90,6 +90,8 @@ df_raw$ACCEPTS_FUT[df_raw$RESPONDENT_ID %in% accepts_fut] <- "True"
 
 # SECTION 5.3.2 OVERALL RESPONSES
 # overall responses
+# TODO redo with tapply
+
 for (tammorpheme in c("HAB0", "HABra", "PROG0", "PROGra", "PROGp", "FUT0", "FUTra")) {
   for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
     print(c(tammorpheme, frame, df_raw %>%
@@ -297,28 +299,9 @@ widen(df_raw, "SCALED_WOULD_YOU_SAY_THIS") %>%
   filter(HABraINDngo <= 0, HAB0INDngo <= 0) %>%
   pull(RESPONDENT_ID) %>% length()
 
-ggarrange(
-  widen(df_raw, "WOULD_YOU_SAY_THIS") %>%
-    na.omit() %>%
-    ggplot(aes(HABraINDngo, HAB0INDngo))+geom_jitter(width=0.1, height=0.1)+
-    labs(title="unscaled", x="ra-", y="ra-less verb")+
-    theme(plot.title = element_text(hjust = 0.5))+
-    theme(legend.position="none"),
-  
-  widen(df_raw, "SCALED_WOULD_YOU_SAY_THIS") %>%
-    na.omit() %>%
-    ggplot(aes(HABraINDngo, HAB0INDngo))+geom_jitter(width=0.1, height=0.1)+
-    labs(title="scaled", x="ra-", y="ra-less verb")+
-    theme(plot.title = element_text(hjust = 0.5))+
-    scale_shape_manual(values=c(15,16,17,18))+
-    geom_vline(xintercept=0)+geom_hline(yintercept=0),
-  
-  ncol=2, common.legend = TRUE, legend="bottom"
-)
-
 summary(lm(WOULD_YOU_SAY_THIS ~ AGE * GENDER * NORTHWEST_DIALECT * MORPHEME,
          data=df_raw %>%
-           filter(TAM=="HAB", FRAME=="IND")))
+           filter(TAM=="HAB", FRAME=="INDngo")))
 
 # SECTION 5.3.6 ACCEPTABILITY OF PROG/FUT ra- across SYNTACTIC FRAMES
 
@@ -354,6 +337,12 @@ summary(
              MORPHEME != "p")
   )
 )
+
+df_raw %>%
+  filter(FRAME %in% c("PART"),
+         ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+         MORPHEME == "ra") %>%
+  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER, linetype=NORTHWEST)) + geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE)
 
 # SECTION 5.3.7 IMPLICATIONAL HIERARCHIES?
 
