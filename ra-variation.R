@@ -62,34 +62,20 @@ accepts_prog = widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
   filter(PROGraINDfinal > 0) %>%
   pull(RESPONDENT_ID) %>%
   unique()
-df$ACCEPTS_PROG <- "False"
-df$ACCEPTS_PROG[df$RESPONDENT_ID %in% accepts_prog] <- "True"
-  
 accepts_fut = widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
   filter(FUTraINDfinal > 0) %>%
   pull(RESPONDENT_ID) %>%
   unique()
-df$ACCEPTS_FUT <- "False"
-df$ACCEPTS_FUT[df$RESPONDENT_ID %in% accepts_fut] <- "True"
+df %>%
+  mutate(ACCEPTS_PROG = RESPONDENT_ID %in% accepts_prog) %>%
+  mutate(ACCEPTS_FUT = RESPONDENT_ID %in% accepts_fut)
 
 # SECTION 5.3.2 OVERALL RESPONSES
-# overall responses
-# TODO redo with tapply
 
-for (tammorpheme in c("HAB0", "HABra", "PROG0", "PROGra", "PROGp", "FUT0", "FUTra")) {
-  for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
-    print(c(tammorpheme, frame, df %>%
-              filter(TAMMORPHEME == tammorpheme, FRAME == frame) %>%
-              pull(WOULD_YOU_SAY_THIS) %>% mean() %>% round(digits=2)))
-  }
-}
-for (tammorpheme in c("HAB0", "HABra", "PROG0", "PROGra", "PROGp", "FUT0", "FUTra")) {
-  for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
-    print(c(tammorpheme, frame, df %>%
-              filter(TAMMORPHEME == tammorpheme, FRAME == frame) %>%
-              pull(SCALED_WOULD_YOU_SAY_THIS) %>% mean() %>% round(digits=2)))
-  }
-}
+df %>%
+  group_by(TAMMORPHEME, FRAME) %>%
+  summarize(SCORE = mean(WOULD_YOU_SAY_THIS),
+            SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS))
 
 # awareness
 
@@ -105,100 +91,6 @@ summary(
   )
 )
 
-# 5.3.3 ACCEPTANCE OF TAM READING; INDEPENDENCE OF SYNTACTIC FRAME
-
-accepts_prog %>% unique() %>% length()
-accepts_fut %>% unique() %>% length()
-intersect(accepts_prog, accepts_fut) %>% unique() %>% length()
-union(accepts_prog, accepts_fut) %>% unique() %>% length()
-
-# scores
-widen(df, "WOULD_YOU_SAY_THIS") %>%
-  filter(RESPONDENT_ID %in% accepts_prog) %>%
-  select(starts_with("PROG0") | starts_with("PROGra"))  %>%
-  summary()
-
-widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-  filter(RESPONDENT_ID %in% accepts_prog) %>%
-  select(starts_with("PROG0") | starts_with("PROGra"))  %>%
-  summary()
-
-widen(df, "WOULD_YOU_SAY_THIS") %>%
-  filter(RESPONDENT_ID %in% accepts_fut) %>%
-  select(starts_with("FUT0") | starts_with("FUTra")) %>%
-  summary()
-
-widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-  filter(RESPONDENT_ID %in% accepts_fut) %>%
-  select(starts_with("FUT0") | starts_with("FUTra")) %>%
-  summary()
-
-# how many people accept at all in either TAM?
-for (morpheme in c("ra", "0")) {
-    for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
-      print(c(morpheme, frame,
-              widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-                filter(
-                  !!sym(paste("PROG", morpheme, frame, sep="")) > 0 |
-                  !!sym(paste("FUT", morpheme, frame, sep="")) > 0
-                  ) %>%
-                select(RESPONDENT_ID) %>% unique() %>% nrow()
-              )
-            )
-    }
-}
-
-
-# how many people accept? PROG accepters, FUT accepters
-for (morpheme in c("ra", "0")) {
-  for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
-    print(c(morpheme, frame,
-            widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-              filter(
-                !!sym(paste("PROG", morpheme, frame, sep="")) > 0
-              ) %>%
-              filter(RESPONDENT_ID %in% accepts_prog) %>%
-              select(RESPONDENT_ID) %>% unique() %>% nrow()
-    )
-    )
-  }
-}
-
-for (morpheme in c("ra", "0")) {
-  for (frame in c("INDfinal", "INDDP", "INDngo", "INDko", "NEG", "REL", "PART")) {
-    print(c(morpheme, frame,
-            widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-              filter(
-                !!sym(paste("FUT", morpheme, frame, sep="")) > 0
-              ) %>%
-              filter(RESPONDENT_ID %in% accepts_fut) %>%
-              select(RESPONDENT_ID) %>% unique() %>% nrow()
-    )
-    )
-  }
-}
-
-# how many people accept across the board?
-widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-  filter(
-    PROGraINDfinal > 0, PROGraINDDP > 0, PROGraINDngo > 0, PROGraINDko > 0,
-    PROGraNEG > 0, PROGraREL > 0, PROGraPART > 0
-  )
-
-widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-  filter(
-    FUTraINDfinal > 0, FUTraINDDP > 0, FUTraINDngo > 0, FUTraINDko > 0,
-    FUTraNEG > 0, FUTraREL > 0, FUTraPART > 0
-  )
-
-widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
-  filter(
-    PROGraINDfinal > 0, PROGraINDDP > 0, PROGraINDngo > 0, PROGraINDko > 0,
-    PROGraNEG > 0, PROGraREL > 0, PROGraPART > 0,
-    FUTraINDfinal > 0, FUTraINDDP > 0, FUTraINDngo > 0, FUTraINDko > 0,
-    FUTraNEG > 0, FUTraREL > 0, FUTraPART > 0
-  )
-  
 # NEW SECTION: GENERAL TRENDS
 
 summary(
@@ -216,6 +108,48 @@ df %>%
   filter(((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True") | TAM == "HAB"),
          MORPHEME == "ra") %>%
   ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER, linetype=NORTHWEST)) + geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE)
+
+
+# 5.3.3 ACCEPTANCE OF TAM READING; INDEPENDENCE OF SYNTACTIC FRAME
+
+accepts_prog %>% unique() %>% length()
+accepts_fut %>% unique() %>% length()
+intersect(accepts_prog, accepts_fut) %>% unique() %>% length()
+union(accepts_prog, accepts_fut) %>% unique() %>% length()
+
+merge(
+  merge(
+    widen(df, "WOULD_YOU_SAY_THIS") %>%
+      filter(RESPONDENT_ID %in% accepts_prog) %>%
+      select(starts_with("PROG0") | starts_with("PROGra")) %>%
+      colMeans() %>%
+      enframe(name = "CONDITION", value = "PROG_MEAN"),
+    
+    widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
+      filter(RESPONDENT_ID %in% accepts_prog) %>%
+      select(starts_with("PROG0") | starts_with("PROGra"))  %>%
+      colMeans() %>%
+      enframe(name = "CONDITION", value = "PROG_SCALED_MEAN")
+  ) %>%
+    mutate(CONDITION = sub("PROG", "", CONDITION)),
+  
+  merge(
+    widen(df, "WOULD_YOU_SAY_THIS") %>%
+      filter(RESPONDENT_ID %in% accepts_fut) %>%
+      select(starts_with("FUT0") | starts_with("FUTra")) %>%
+      colMeans() %>%
+      enframe(name = "CONDITION", value = "FUT_MEAN"),
+    
+    widen(df, "SCALED_WOULD_YOU_SAY_THIS") %>%
+      filter(RESPONDENT_ID %in% accepts_fut) %>%
+      select(starts_with("FUT0") | starts_with("FUTra")) %>%
+      colMeans() %>%
+      enframe(name = "CONDITION", value = "FUT_SCALED_MEAN")
+  ) %>%
+    mutate(CONDITION = sub("FUT", "", CONDITION)),
+) %>%
+  mutate(across(where(is.numeric), round, digits = 2))
+
 
 # SECTION 5.3.4 MEANING OF PROG/FUT RA-
 
