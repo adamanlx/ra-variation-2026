@@ -5,7 +5,6 @@ library(gridExtra)
 library(ggpubr)
 
 df <- read.csv('transformed_data.csv', header=T) %>%
-  mutate(TAMMORPHEME = paste(TAM, MORPHEME, sep="")) %>%
   mutate(NORTHWEST = ifelse(
     REGION %in% c("Burera", "Musanze", "Rulindo", "Gakenke", "Rubavu"),
     "Northwest", "Elsewhere"
@@ -44,9 +43,25 @@ accepts_fut = df_avg %>%
 # SECTION 5.3.2 OVERALL RESPONSES
 
 df %>%
-  group_by(TAMMORPHEME, FRAME) %>%
+  group_by(TAM, MORPHEME, FRAME) %>%
   summarize(SCORE = mean(WOULD_YOU_SAY_THIS),
             SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS))
+
+df %>%
+  filter(MORPHEME != "p") %>%
+  filter(
+    TAM == "HAB" |
+    TAM == "PROG" & RESPONDENT_ID %in% accepts_prog |
+    TAM == "FUT" & RESPONDENT_ID %in% accepts_fut
+  ) %>%
+  mutate(TAM = ifelse(TAM == "HAB", "HAB", "PROG/FUT")) %>%
+  group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
+  summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=AVERAGE_ACCEPTANCE) %>%
+  ggplot(aes(ra, `0`)) + geom_jitter(width=0.1, height=0.1) +
+  labs(x="ra", y="0") + theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept=0) + geom_hline(yintercept=0) +
+  facet_grid(rows = vars(FRAME), cols = vars(TAM))
 
 # awareness
 
@@ -70,14 +85,14 @@ summary(
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
       filter(
-        ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
+        ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut) | TAM == "HAB"),
         MORPHEME %in% c("ra", "0"))
   )
 )
 
 df %>%
   filter(MORPHEME != "p") %>%
-  filter(((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
+  filter(((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut) | TAM == "HAB")) %>%
   ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER)) +
   geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
   facet_wrap(~MORPHEME)
@@ -89,18 +104,6 @@ accepts_prog %>% unique() %>% length()
 accepts_fut %>% unique() %>% length()
 intersect(accepts_prog, accepts_fut) %>% unique() %>% length()
 union(accepts_prog, accepts_fut) %>% unique() %>% length()
-
-df_avg %>%
-  filter(RESPONDENT_ID %in% accepts_prog, TAM == "PROG") %>%
-  group_by(MORPHEME, FRAME) %>%
-  summarize(MEAN_WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
-            MEAN_SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS))
-
-df_avg %>%
-  filter(RESPONDENT_ID %in% accepts_fut, TAM == "FUT") %>%
-  group_by(MORPHEME, FRAME) %>%
-  summarize(MEAN_WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
-            MEAN_SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS))
 
 df_avg %>%
   filter(MORPHEME == "ra", FRAME == "INDfinal", TAM %in% c("PROG", "FUT")) %>%
@@ -132,21 +135,16 @@ grid.arrange(
 summary(lm(PROGra ~ FUTra, prog_fut_responses))
 summary(lm(PROG0 ~ FUT0, prog_fut_responses))
 
+df_avg %>%
+  filter(
+    (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) |
+      (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)
+  ) %>%
+  group_by(MORPHEME, FRAME) %>%
+  summarize(MEAN_WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
+            MEAN_SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS))
+
 # SECTION 5.3.5 ACCEPTABILITY OF RA-LESS VERBS BEFORE NGO
-
-ngo_responses <- df_avg %>%
-  filter(TAM == "HAB", FRAME == "INDngo") %>%
-  pivot_wider(id_cols=RESPONDENT_ID, names_from=MORPHEME, values_from=SCALED_WOULD_YOU_SAY_THIS)
-
-ngo_responses %>% filter(ra > 0, `0` > 0) %>% nrow()
-ngo_responses %>% filter(ra <= 0, `0` > 0) %>% nrow()
-ngo_responses %>% filter(ra > 0, `0` <= 0) %>% nrow()
-ngo_responses %>% filter(ra <= 0, `0` <= 0) %>% nrow()
-
-ngo_responses %>%
-  ggplot(aes(ra, `0`))+geom_jitter(width=0.1, height=0.1)+
-  labs(x="ra", y="0")+theme(plot.title = element_text(hjust = 0.5))+
-  geom_vline(xintercept=0)+geom_hline(yintercept=0)
 
 summary(lm(WOULD_YOU_SAY_THIS ~ AGE * GENDER * NORTHWEST_DIALECT * MORPHEME,
          data=df %>%
@@ -262,29 +260,15 @@ summary(
   )
 )
 
-# SECTION 6.2.1 NEGATION AS THE SOLE ENVIRONMENT FOR CHANGE: SEGMENTAL DISTINCTIVENESS?
-
 df %>%
-  filter(TAM == "PROG" | TAM == "FUT") %>%
-  filter(FRAME == "NEG", MORPHEME == "ra") %>%
-  mutate(SCALED_AWARENESS = as.double(SCALED_AWARENESS)) %>%
-  pull(SCALED_AWARENESS) %>%
-  na.omit() %>%
-  mean()
-
-df %>%
-  filter(TAM == "PROG" | TAM == "FUT") %>%
-  filter(FRAME == "REL", MORPHEME == "ra") %>%
-  mutate(SCALED_AWARENESS = as.double(SCALED_AWARENESS)) %>%
-  pull(SCALED_AWARENESS) %>%
-  na.omit() %>%
-  mean()
-
-df %>%
-  filter(TAM == "PROG" | TAM == "FUT") %>%
-  filter(FRAME == "PART", MORPHEME == "ra") %>%
-  mutate(SCALED_AWARENESS = as.double(SCALED_AWARENESS)) %>%
-  pull(SCALED_AWARENESS) %>%
-  na.omit() %>%
-  mean()
-
+  filter(TAM == "PROG") %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
+  mutate(MORPHEME = ifelse(MORPHEME == "p", "p", "notp")) %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  summarize(MAX_ACCEPTANCE = max(AVERAGE_ACCEPTANCE)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=MAX_ACCEPTANCE) %>%
+  ggplot(aes(p, notp))+geom_jitter(width=0.1, height=0.1)+
+  labs(x="periphrastic", y="highest-accepted affixal strategy")+theme(plot.title = element_text(hjust = 0.5))+
+  geom_vline(xintercept=0)+geom_hline(yintercept=0)+
+  facet_wrap(~FRAME)
