@@ -262,13 +262,13 @@ summary(
 
 df %>%
   filter(TAM == "PROG") %>%
-  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME, NORTHWEST) %>%
   summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
   mutate(MORPHEME = ifelse(MORPHEME == "p", "p", "notp")) %>%
   group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
   summarize(MAX_ACCEPTANCE = max(AVERAGE_ACCEPTANCE)) %>%
   pivot_wider(names_from=MORPHEME, values_from=MAX_ACCEPTANCE) %>%
-  ggplot(aes(p, notp))+geom_jitter(width=0.1, height=0.1)+
+  ggplot(aes(p, notp, color=NORTHWEST))+geom_jitter(width=0.1, height=0.1)+
   labs(x="periphrastic", y="highest-accepted affixal strategy")+theme(plot.title = element_text(hjust = 0.5))+
   geom_vline(xintercept=0)+geom_hline(yintercept=0)+
   facet_wrap(~FRAME)
