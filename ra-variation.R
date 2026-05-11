@@ -15,6 +15,8 @@ df <- read.csv('transformed_data.csv', header=T) %>%
     "Northwest",
     "Elsewhere"
   )) %>%
+  mutate(MORPHEME = relevel(as_factor(MORPHEME), "ra")) %>%
+  mutate(GENDER = relevel(as_factor(GENDER), "male")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   mutate(SCALED_AWARENESS = scale(HAVE_YOU_HEARD_THIS))
@@ -60,23 +62,25 @@ summary(
   )
 )
 
-# NEW SECTION: GENERAL TRENDS
+# GENERAL TRENDS
 
 summary(
   lmer(
     SCALED_WOULD_YOU_SAY_THIS
-    ~ AGE * GENDER * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
       filter(
-        ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+        ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
         MORPHEME %in% c("ra", "0"))
   )
 )
 
 df %>%
-  filter(((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True") | TAM == "HAB"),
-         MORPHEME == "ra") %>%
-  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER, linetype=NORTHWEST)) + geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE)
+  filter(MORPHEME != "p") %>%
+  filter(((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
+  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER)) +
+  geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
+  facet_wrap(~MORPHEME)
 
 
 # 5.3.3 ACCEPTANCE OF TAM READING; INDEPENDENCE OF SYNTACTIC FRAME
@@ -98,27 +102,18 @@ df_avg %>%
   summarize(MEAN_WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
             MEAN_SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS))
 
-grid.arrange(
-  df_avg %>%
-    filter(MORPHEME == "ra", FRAME == "INDfinal", TAM %in% c("PROG", "FUT")) %>%
-    pivot_wider(id_cols = RESPONDENT_ID, names_from = TAM, values_from = WOULD_YOU_SAY_THIS) %>%
-    ggplot(aes(PROG, FUT))+geom_jitter(width=0.1, height=0.1)+
-    labs(title="unscaled", x="PROG", y="FUT")+theme(plot.title = element_text(hjust = 0.5)),
-  df_avg %>%
-    filter(MORPHEME == "ra", FRAME == "INDfinal", TAM %in% c("PROG", "FUT")) %>%
-    pivot_wider(id_cols = RESPONDENT_ID, names_from = TAM, values_from = SCALED_WOULD_YOU_SAY_THIS) %>%
-    ggplot(aes(PROG, FUT))+geom_jitter(width=0.1, height=0.1)+
-    labs(title="scaled", x="PROG", y="FUT")+theme(plot.title = element_text(hjust = 0.5))+
-    geom_vline(xintercept=0)+geom_hline(yintercept=0),
-  ncol=2
-)
+df_avg %>%
+  filter(MORPHEME == "ra", FRAME == "INDfinal", TAM %in% c("PROG", "FUT")) %>%
+  pivot_wider(id_cols = RESPONDENT_ID, names_from = TAM, values_from = SCALED_WOULD_YOU_SAY_THIS) %>%
+  ggplot(aes(PROG, FUT))+geom_jitter(width=0.1, height=0.1)+
+  labs(x="PROG", y="FUT")+theme(plot.title = element_text(hjust = 0.5))+
+  geom_vline(xintercept=0)+geom_hline(yintercept=0)
 
 # are PROG and FUT comparable?
 
-prog_fut_resopnses <- df_avg %>%
+prog_fut_responses <- df_avg %>%
   mutate(TAMMORPHEME = paste(TAM, MORPHEME, sep='')) %>%
   pivot_wider(id_cols=c(RESPONDENT_ID, FRAME), names_from=TAMMORPHEME, values_from=SCALED_WOULD_YOU_SAY_THIS)
-
 
 grid.arrange(
   prog_fut_responses %>%
@@ -148,6 +143,11 @@ ngo_responses %>% filter(ra <= 0, `0` > 0) %>% nrow()
 ngo_responses %>% filter(ra > 0, `0` <= 0) %>% nrow()
 ngo_responses %>% filter(ra <= 0, `0` <= 0) %>% nrow()
 
+ngo_responses %>%
+  ggplot(aes(ra, `0`))+geom_jitter(width=0.1, height=0.1)+
+  labs(x="ra", y="0")+theme(plot.title = element_text(hjust = 0.5))+
+  geom_vline(xintercept=0)+geom_hline(yintercept=0)
+
 summary(lm(WOULD_YOU_SAY_THIS ~ AGE * GENDER * NORTHWEST_DIALECT * MORPHEME,
          data=df %>%
            filter(TAM=="HAB", FRAME=="INDngo")))
@@ -160,10 +160,17 @@ summary(
     ~ AGE * GENDER * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data=df %>%
       filter(FRAME %in% c("NEG"),
-             ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+             ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
              MORPHEME != "p")
   )
 )
+
+df %>%
+  filter(FRAME %in% c("NEG"), MORPHEME != "p",
+         ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
+  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER)) +
+  geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
+  facet_wrap(~MORPHEME)
 
 summary(
   lmer(
@@ -171,7 +178,7 @@ summary(
     ~ AGE * GENDER * NORTHWEST * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data=df %>%
       filter(FRAME %in% c("REL"),
-             ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+             ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
              MORPHEME != "p")
   )
 )
@@ -182,14 +189,14 @@ summary(
     ~ AGE * GENDER * NORTHWEST * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data=df %>%
       filter(FRAME %in% c("PART"),
-             ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+             ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
              MORPHEME != "p")
   )
 )
 
 df %>%
   filter(FRAME %in% c("PART"),
-         ((TAM == "PROG" & ACCEPTS_PROG == "True") | (TAM == "FUT" & ACCEPTS_FUT == "True")),
+         ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
          MORPHEME == "ra") %>%
   ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER, linetype=NORTHWEST)) + geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE)
 
