@@ -55,13 +55,13 @@ df %>%
     TAM == "FUT" & RESPONDENT_ID %in% accepts_fut
   ) %>%
   mutate(TAM = ifelse(TAM == "HAB", "HAB", "PROG/FUT")) %>%
-  group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
+  group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME, AGE) %>%
   summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=MORPHEME, values_from=AVERAGE_ACCEPTANCE) %>%
   ggplot(aes(ra, `0`)) + geom_jitter(width=0.1, height=0.1) +
-  labs(x="ra", y="0") + theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x="ra-", y="unmarked verb") + theme(plot.title = element_text(hjust = 0.5)) +
   geom_vline(xintercept=0) + geom_hline(yintercept=0) +
-  facet_grid(rows = vars(FRAME), cols = vars(TAM))
+  facet_grid(rows = vars(TAM), cols = vars(FRAME))
 
 # awareness
 
@@ -81,21 +81,23 @@ summary(
 
 summary(
   lmer(
-    SCALED_WOULD_YOU_SAY_THIS
+    WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(
-        ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut) | TAM == "HAB"),
-        MORPHEME %in% c("ra", "0"))
+      filter(MORPHEME %in% c("ra", "0")) %>%
+      filter(TAM %in% c("PROG", "FUT")) %>%
+      filter(FRAME %in% c("INDngo", "NEG", "REL", "PART"))
   )
 )
 
 df %>%
-  filter(MORPHEME != "p") %>%
-  filter(((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut) | TAM == "HAB")) %>%
-  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER)) +
-  geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
-  facet_wrap(~MORPHEME)
+  filter(MORPHEME %in% c("ra", "0")) %>%
+  group_by(RESPONDENT_ID) %>%
+  mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
+  ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(GENDER, "female"))) +
+  geom_jitter() + geom_smooth(method="lm", se=TRUE) +
+  labs(x="Age", y="Rating", color="Gender") +
+  facet_wrap(~ MORPHEME)
 
 
 # 5.3.3 ACCEPTANCE OF TAM READING; INDEPENDENCE OF SYNTACTIC FRAME
@@ -109,7 +111,7 @@ df_avg %>%
   filter(MORPHEME == "ra", FRAME == "INDfinal", TAM %in% c("PROG", "FUT")) %>%
   pivot_wider(id_cols = RESPONDENT_ID, names_from = TAM, values_from = SCALED_WOULD_YOU_SAY_THIS) %>%
   ggplot(aes(PROG, FUT))+geom_jitter(width=0.1, height=0.1)+
-  labs(x="PROG", y="FUT")+theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="present progressive", y="near future")+theme(plot.title = element_text(hjust = 0.5))+
   geom_vline(xintercept=0)+geom_hline(yintercept=0)
 
 # are PROG and FUT comparable?
@@ -150,6 +152,16 @@ summary(lm(WOULD_YOU_SAY_THIS ~ AGE * GENDER * NORTHWEST_DIALECT * MORPHEME,
          data=df %>%
            filter(TAM=="HAB", FRAME=="INDngo")))
 
+df %>%
+  filter(MORPHEME != "p", TAM == "HAB", FRAME == "INDngo") %>%
+  mutate(TAM = ifelse(TAM == "HAB", "HAB", "PROG/FUT")) %>%
+  group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
+  summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=AVERAGE_ACCEPTANCE) %>%
+  ggplot(aes(ra, `0`)) + geom_jitter(width=0.1, height=0.1) +
+  labs(x="ra", y="0") + theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept=0) + geom_hline(yintercept=0)
+
 # SECTION 5.3.6 ACCEPTABILITY OF PROG/FUT ra- across SYNTACTIC FRAMES
 
 summary(
@@ -166,9 +178,11 @@ summary(
 df %>%
   filter(FRAME %in% c("NEG"), MORPHEME != "p",
          ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
-  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER)) +
+  ggplot(aes(AGE, WOULD_YOU_SAY_THIS)) +
   geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
+  labs(x="Age", y="Scaled acceptance", color="Gender") +
   facet_wrap(~MORPHEME)
+
 
 summary(
   lmer(
@@ -184,7 +198,7 @@ summary(
 summary(
   lmer(
     SCALED_WOULD_YOU_SAY_THIS
-    ~ AGE * GENDER * NORTHWEST * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    ~ AGE * GENDER * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data=df %>%
       filter(FRAME %in% c("PART"),
              ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
@@ -193,10 +207,11 @@ summary(
 )
 
 df %>%
-  filter(FRAME %in% c("PART"),
-         ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
-         MORPHEME == "ra") %>%
-  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=GENDER, linetype=NORTHWEST)) + geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE)
+  filter(FRAME %in% c("REL", "PART"), MORPHEME %in% c("ra", "0"),
+         ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
+  ggplot(aes(AGE, SCALED_WOULD_YOU_SAY_THIS, color=relevel(GENDER, "female"))) + geom_jitter(width=0.1, height=0.1) +
+  facet_grid(rows = vars(MORPHEME), cols = vars(FRAME)) +
+  labs(x="Age", y="Scaled acceptance", color="Gender")
 
 # SECTION 5.3.7 IMPLICATIONAL HIERARCHIES?
 
@@ -208,23 +223,22 @@ neg_rel_part <- df_avg %>%
 ggarrange(
   neg_rel_part %>%
     ggplot(
-      aes(REL, NEG, color=TAM)
-    ) + geom_jitter() + 
-    geom_smooth(method="lm", se=FALSE) +
+      aes(REL, NEG)
+    ) + geom_jitter(width = 0.1, height = 0.1) +
     xlab("relativization") + ylab("negation")+
     xlim(-1.5, 1.5)+ylim(-1.5, 1.5),
   
   neg_rel_part %>%
     ggplot(
-      aes(PART, NEG, color=TAM)
-    ) + geom_jitter() +
+      aes(PART, NEG)
+    ) + geom_jitter(width = 0.1, height = 0.1) +
     xlab("participial") + ylab("negation")+
     xlim(-1.5, 1.5)+ylim(-1.5, 1.5),
   
   neg_rel_part %>%
     ggplot(
-      aes(PART, REL, color=TAM)
-    ) + geom_jitter() +
+      aes(PART, REL)
+    ) + geom_jitter(width = 0.1, height = 0.1) +
     xlab("relativization") + ylab("participial")+
     xlim(-1.5, 1.5)+ylim(-1.5, 1.5),
   
@@ -265,10 +279,15 @@ df %>%
   group_by(RESPONDENT_ID, MORPHEME, FRAME, NORTHWEST) %>%
   summarize(AVERAGE_ACCEPTANCE = mean(SCALED_WOULD_YOU_SAY_THIS)) %>%
   mutate(MORPHEME = ifelse(MORPHEME == "p", "p", "notp")) %>%
-  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME, NORTHWEST) %>%
   summarize(MAX_ACCEPTANCE = max(AVERAGE_ACCEPTANCE)) %>%
   pivot_wider(names_from=MORPHEME, values_from=MAX_ACCEPTANCE) %>%
-  ggplot(aes(p, notp, color=NORTHWEST))+geom_jitter(width=0.1, height=0.1)+
+  ggplot(aes(p, notp))+geom_jitter(width=0.1, height=0.1)+
   labs(x="periphrastic", y="highest-accepted affixal strategy")+theme(plot.title = element_text(hjust = 0.5))+
   geom_vline(xintercept=0)+geom_hline(yintercept=0)+
   facet_wrap(~FRAME)
+
+# how many pairs are correlated?
+
+df_avg %>%
+  mutate(CONDITION = RESPONDENT_ID)
