@@ -43,9 +43,14 @@ accepts_fut = df_avg %>%
 # SECTION 5.3.2 OVERALL RESPONSES
 
 df %>%
+  mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
   group_by(TAM, MORPHEME, FRAME) %>%
-  summarize(SCORE = mean(WOULD_YOU_SAY_THIS),
-            SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS))
+  summarize(MEAN_SCORE = mean(WOULD_YOU_SAY_THIS),
+            SD_SCORE = sd(WOULD_YOU_SAY_THIS),
+            MEAN_SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS),
+            SD_SCALED_SCORE = sd(SCALED_WOULD_YOU_SAY_THIS)) %>%
+  arrange(SD_SCALED_SCORE) %>%
+  print(n=35)
 
 df %>%
   filter(MORPHEME != "p") %>%
@@ -87,6 +92,14 @@ summary(
       filter(MORPHEME %in% c("ra", "0")) %>%
       filter(TAM %in% c("PROG", "FUT")) %>%
       filter(FRAME %in% c("INDngo", "NEG", "REL", "PART"))
+  )
+)
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df
   )
 )
 
@@ -289,7 +302,7 @@ df %>%
 
 # how many pairs are correlated?
 
-df_avg %>%
+test <- df_avg %>%
   filter(MORPHEME != "p") %>%
   mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
   mutate(CONDITION = paste(TAM, MORPHEME, FRAME)) %>%
@@ -301,6 +314,12 @@ df_avg %>%
   cor() %>%
   as.data.frame() %>%
   rownames_to_column("var1") %>%
-  pivot_longer(cols = -var1, names_to = "var2", values_to = "pvalue") %>%
-  filter(var1 != var2, abs(pvalue) <= 0.05) %>%
-  print(n=66)
+  pivot_longer(cols = -var1, names_to = "var2", values_to = "rvalue") %>%
+  filter(var1 != var2) %>%
+  group_by(var1, var2) %>%
+  summarize(rvalue = mean(rvalue)) %>%
+  arrange(rvalue)
+
+# r value = how spread away are the dots from the line? 1 = perfect score
+# cor.test will give r value and p value
+# need to do multiple comparisons corrections
