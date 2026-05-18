@@ -290,4 +290,17 @@ df %>%
 # how many pairs are correlated?
 
 df_avg %>%
-  mutate(CONDITION = RESPONDENT_ID)
+  filter(MORPHEME != "p") %>%
+  mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
+  mutate(CONDITION = paste(TAM, MORPHEME, FRAME)) %>%
+  group_by(RESPONDENT_ID, CONDITION) %>%
+  summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from = CONDITION, values_from = WOULD_YOU_SAY_THIS) %>%
+  ungroup() %>%
+  select(-RESPONDENT_ID) %>%
+  cor() %>%
+  as.data.frame() %>%
+  rownames_to_column("var1") %>%
+  pivot_longer(cols = -var1, names_to = "var2", values_to = "pvalue") %>%
+  filter(var1 != var2, abs(pvalue) <= 0.05) %>%
+  print(n=66)
