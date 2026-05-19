@@ -3,6 +3,7 @@ library(factoextra)
 library(lmerTest)
 library(gridExtra)
 library(ggpubr)
+library(Hmisc)
 
 df <- read.csv('transformed_data.csv', header=T) %>%
   mutate(NORTHWEST = ifelse(
@@ -45,11 +46,27 @@ accepts_fut = df_avg %>%
 df %>%
   mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
   group_by(TAM, MORPHEME, FRAME) %>%
-  summarize(MEAN_SCORE = mean(WOULD_YOU_SAY_THIS),
+  dplyr::summarize(MEAN_SCORE = mean(WOULD_YOU_SAY_THIS),
             SD_SCORE = sd(WOULD_YOU_SAY_THIS),
             MEAN_SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS),
             SD_SCALED_SCORE = sd(SCALED_WOULD_YOU_SAY_THIS)) %>%
-  arrange(SD_SCALED_SCORE) %>%
+  arrange(SD_SCORE) %>%
+  print(n=35)
+
+df %>%
+  filter(
+    TAM == "HAB" |
+      (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) |
+      (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)
+  ) %>%
+  mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
+  group_by(TAM, MORPHEME, FRAME) %>%
+  dplyr::summarize(MEAN_SCORE = mean(WOULD_YOU_SAY_THIS),
+                   SD_SCORE = sd(WOULD_YOU_SAY_THIS),
+                   MEAN_SCALED_SCORE = mean(SCALED_WOULD_YOU_SAY_THIS),
+                   SD_SCALED_SCORE = sd(SCALED_WOULD_YOU_SAY_THIS)) %>%
+  arrange(MEAN_SCALED_SCORE) %>%
+  filter(MORPHEME != "p", !FRAME %in% c("INDngo", "INDko")) %>%
   print(n=35)
 
 df %>%
@@ -102,6 +119,14 @@ summary(
     data = df
   )
 )
+
+df %>%
+  ggplot(aes(WOULD_YOU_SAY_THIS)) + geom_histogram() +
+  labs(x="Thinking specifically about the verb, would you yourself say this?") +
+  scale_x_continuous(
+    breaks = c(1, 2, 3, 4, 5),
+    labels = c("Never", "Sometimes", "I don't know", "Usually", "Always")
+  )
 
 df %>%
   filter(MORPHEME %in% c("ra", "0")) %>%
@@ -238,6 +263,7 @@ ggarrange(
     ggplot(
       aes(REL, NEG)
     ) + geom_jitter(width = 0.1, height = 0.1) +
+    geom_smooth(method="lm") +
     xlab("relativization") + ylab("negation")+
     xlim(-1.5, 1.5)+ylim(-1.5, 1.5),
   
@@ -302,24 +328,34 @@ df %>%
 
 # how many pairs are correlated?
 
-test <- df_avg %>%
+pvalues <- df_avg %>%
   filter(MORPHEME != "p") %>%
   mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
   mutate(CONDITION = paste(TAM, MORPHEME, FRAME)) %>%
   group_by(RESPONDENT_ID, CONDITION) %>%
-  summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from = CONDITION, values_from = WOULD_YOU_SAY_THIS) %>%
   ungroup() %>%
   select(-RESPONDENT_ID) %>%
-  cor() %>%
+  as.matrix() %>%
+  rcorr(type = "pearson") %>%
+  .$P %>%
   as.data.frame() %>%
   rownames_to_column("var1") %>%
-  pivot_longer(cols = -var1, names_to = "var2", values_to = "rvalue") %>%
-  filter(var1 != var2) %>%
-  group_by(var1, var2) %>%
-  summarize(rvalue = mean(rvalue)) %>%
-  arrange(rvalue)
+  pivot_longer(cols=-var1, names_to="var2", values_to="pvalue") %>%
+  na.omit() %>%
+  filter(var1 < var2)
 
 # r value = how spread away are the dots from the line? 1 = perfect score
 # cor.test will give r value and p value
 # need to do multiple comparisons corrections
+
+# are there ra likers and ra haters?
+
+df %>%
+  filter(MORPHEME != "p", TAM %in% c("PROG", "FUT"), FRAME %in% c("NEG", "REL", "PART")) %>%
+  group_by(RESPONDENT_ID, MORPHEME) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
+  ggplot(aes(ra, `0`)) + geom_jitter() +
+  labs(x="average ra- score", y="average unmarked verb score")
