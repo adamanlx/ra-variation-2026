@@ -2,8 +2,6 @@ library(tidyverse)
 library(factoextra)
 library(lmerTest)
 library(gridExtra)
-library(ggpubr)
-library(Hmisc)
 
 df <- read.csv('transformed_data.csv', header=T) %>%
   mutate(NORTHWEST = ifelse(
@@ -23,7 +21,7 @@ df <- read.csv('transformed_data.csv', header=T) %>%
 
 df_avg <- df %>%
   group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
-  summarize(
+  dplyr::summarize(
     WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
     SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS)
   )
@@ -32,12 +30,12 @@ df_avg <- df %>%
 
 accepts_prog = df_avg %>%
   filter(TAM == "PROG", MORPHEME == "ra", FRAME == "INDfinal",
-         SCALED_WOULD_YOU_SAY_THIS > 0) %>%
+         WOULD_YOU_SAY_THIS > 1) %>%
   pull(RESPONDENT_ID) %>%
   unique()
 accepts_fut = df_avg %>%
   filter(TAM == "FUT", MORPHEME == "ra", FRAME == "INDfinal",
-         SCALED_WOULD_YOU_SAY_THIS > 0) %>%
+         WOULD_YOU_SAY_THIS > 1) %>%
   pull(RESPONDENT_ID) %>%
   unique()
 
@@ -104,13 +102,21 @@ summary(
 summary(
   lmer(
     WOULD_YOU_SAY_THIS
-    ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    ~ AGE * relevel(as_factor(GENDER), "male") * relevel(as_factor(MORPHEME), "ra") + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(MORPHEME %in% c("ra", "0")) %>%
-      filter(TAM %in% c("PROG", "FUT")) %>%
-      filter(FRAME %in% c("INDngo", "NEG", "REL", "PART"))
+      filter(MORPHEME %in% c("ra", "0"))
   )
 )
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * relevel(as_factor(GENDER), "male") * relevel(as_factor(MORPHEME), "ra") + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>%
+      filter(MORPHEME %in% c("ra", "0"), FRAME != "NEG")
+  )
+)
+
 
 summary(
   lmer(
@@ -204,19 +210,32 @@ df %>%
 
 summary(
   lmer(
-    SCALED_WOULD_YOU_SAY_THIS
-    ~ AGE * GENDER * MORPHEME + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    WOULD_YOU_SAY_THIS
+    ~ AGE * GENDER * relevel(as_factor(MORPHEME), "0") + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data=df %>%
-      filter(FRAME %in% c("NEG"),
-             ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)),
+      filter(FRAME %in% c("NEG"), TAM %in% c("PROG", "FUT"),
              MORPHEME != "p")
   )
 )
 
 df %>%
-  filter(FRAME %in% c("NEG"), MORPHEME != "p",
-         ((TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut))) %>%
-  ggplot(aes(AGE, WOULD_YOU_SAY_THIS)) +
+  filter(FRAME %in% c("NEG"), MORPHEME != "p", TAM %in% c("PROG", "FUT")) %>%
+  ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=GENDER)) +
+  geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
+  labs(x="Age", y="Scaled acceptance", color="Gender") +
+  facet_wrap(~MORPHEME)
+
+df %>%
+  mutate(IS_NEG = FRAME %in% c("NEG"), MORPHEME != "p", TAM %in% c("PROG", "FUT")) %>%
+  filter(MORPHEME != "p") %>%
+  ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=GENDER)) +
+  geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm") +
+  labs(x="Age", y="Scaled acceptance", color="Gender") +
+  facet_grid(IS_NEG ~ MORPHEME)
+
+df %>%
+  filter(FRAME %in% c("INDfinal"), MORPHEME != "p", TAM %in% c("HAB")) %>%
+  ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=GENDER)) +
   geom_jitter(width=0.1, height=0.1) + geom_smooth(method="lm", se=FALSE) +
   labs(x="Age", y="Scaled acceptance", color="Gender") +
   facet_wrap(~MORPHEME)
@@ -254,8 +273,9 @@ df %>%
 # SECTION 5.3.7 IMPLICATIONAL HIERARCHIES?
 
 neg_rel_part <- df_avg %>%
-  filter(TAM %in% c("PROG", "FUT"), FRAME %in% c("NEG", "REL", "PART"), MORPHEME == "ra",
+  filter(TAM %in% c("PROG", "FUT"), FRAME %in% c("NEG", "REL", "PART"), MORPHEME %in% c('ra', '0'),
          (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) | (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)) %>%
+  mutate(FRAME = paste(FRAME, MORPHEME, sep="")) %>%
   pivot_wider(id_cols=c(RESPONDENT_ID, TAM), names_from=FRAME, values_from=SCALED_WOULD_YOU_SAY_THIS)
 
 ggarrange(
@@ -288,15 +308,27 @@ ggarrange(
 
 
 summary(
-  lmer(NEG ~ REL * TAM + (1 | RESPONDENT_ID),
+  lmer(NEGra ~ RELra * TAM + (1 | RESPONDENT_ID),
        data = neg_rel_part))
 
 summary(
-  lmer(NEG ~ PART * TAM + (1 | RESPONDENT_ID),
+  lmer(NEGra ~ PARTra * TAM + (1 | RESPONDENT_ID),
        data = neg_rel_part))
 
 summary(
-  lmer(PART ~ REL * TAM + (1 | RESPONDENT_ID),
+  lmer(PARTra ~ RELra * TAM + (1 | RESPONDENT_ID),
+       data = neg_rel_part))
+
+summary(
+  lmer(NEG0 ~ REL0 * TAM + (1 | RESPONDENT_ID),
+       data = neg_rel_part))
+
+summary(
+  lmer(NEG0 ~ PART0 * TAM + (1 | RESPONDENT_ID),
+       data = neg_rel_part))
+
+summary(
+  lmer(PART0 ~ REL0 * TAM + (1 | RESPONDENT_ID),
        data = neg_rel_part))
 
 # SECTION 5.3.8 PERIPHRASTICS
@@ -328,9 +360,12 @@ df %>%
 
 # how many pairs are correlated?
 
-pvalues <- df_avg %>%
-  filter(MORPHEME != "p") %>%
-  mutate(TAM = ifelse(TAM == "FUT", "PROG", TAM)) %>%
+rvalues <- df %>%
+  group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
+  dplyr::summarize(
+    WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
+    SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS)
+  ) %>%
   mutate(CONDITION = paste(TAM, MORPHEME, FRAME)) %>%
   group_by(RESPONDENT_ID, CONDITION) %>%
   dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
@@ -339,12 +374,54 @@ pvalues <- df_avg %>%
   select(-RESPONDENT_ID) %>%
   as.matrix() %>%
   rcorr(type = "pearson") %>%
-  .$P %>%
+  .$r %>%
   as.data.frame() %>%
   rownames_to_column("var1") %>%
-  pivot_longer(cols=-var1, names_to="var2", values_to="pvalue") %>%
+  pivot_longer(cols=-var1, names_to="var2", values_to="rvalue") %>%
   na.omit() %>%
-  filter(var1 < var2)
+  filter(var1 < var2) %>%
+  mutate(ABS = abs(rvalue)) %>%
+  filter(ABS > 0.4)
+
+# correlation matrices by TAM
+
+df %>%
+  filter(MORPHEME == "0") %>%
+  group_by(RESPONDENT_ID, TAM) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from = TAM, values_from = WOULD_YOU_SAY_THIS) %>%
+  ungroup() %>%
+  select(-RESPONDENT_ID) %>%
+  as.matrix() %>%
+  rcorr(type = "pearson") %>%
+  .$P %>%
+  as.data.frame()
+
+df %>%
+  filter((MORPHEME == "ra" & TAM == "FUT") | (MORPHEME == "0" & TAM == "PROG")) %>%
+  group_by(RESPONDENT_ID, FRAME) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from = FRAME, values_from = WOULD_YOU_SAY_THIS) %>%
+  ungroup() %>%
+  select(-RESPONDENT_ID) %>%
+  as.matrix() %>%
+  rcorr(type = "pearson") %>%
+  .$r %>%
+  as.data.frame()
+
+df %>%
+  filter((MORPHEME == "ra" & TAM == "FUT") | (MORPHEME == "0" & TAM == "PROG")) %>%
+  group_by(RESPONDENT_ID, FRAME) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from = FRAME, values_from = WOULD_YOU_SAY_THIS) %>%
+  ggplot(aes(INDfinal, NEG)) + geom_jitter()
+
+df %>%
+  filter(TAM %in% c("PROG", "FUT"), MORPHEME != "p") %>%
+  group_by(RESPONDENT_ID, MORPHEME, TAM) %>%
+  dplyr::summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from = TAM, values_from = WOULD_YOU_SAY_THIS) %>%
+  ggplot(aes(FUT, PROG, color=MORPHEME)) + geom_jitter()
 
 # r value = how spread away are the dots from the line? 1 = perfect score
 # cor.test will give r value and p value
@@ -359,3 +436,29 @@ df %>%
   pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
   ggplot(aes(ra, `0`)) + geom_jitter() +
   labs(x="average ra- score", y="average unmarked verb score")
+
+# which ones are variable which ones aren't? use top quartile = variable
+df %>%
+  group_by(MORPHEME, TAM, FRAME) %>%
+  dplyr::summarize(ONES = sum(WOULD_YOU_SAY_THIS == 1) / n(), FIVES = sum(WOULD_YOU_SAY_THIS == 5) / n(), COUNT = n()) %>%
+  mutate(EXPECTED_NO_VARIATION = ifelse(ONES > FIVES, ONES, FIVES)) %>%
+  arrange(EXPECTED_NO_VARIATION) %>%
+  print(n=1000)
+
+df_avg %>%
+  filter(MORPHEME != "p") %>%
+  filter(
+    (TAM == "HAB") |
+    (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) |
+    (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)) %>%
+  select(-SCALED_WOULD_YOU_SAY_THIS) %>%
+  pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
+  mutate(TAM = factor(TAM, levels=c("HAB", "PROG", "FUT"))) %>%
+  mutate(FRAME = factor(FRAME, levels=c(
+    "INDfinal", "INDDP", "INDko", "INDngo", "NEG", "REL", "PART"))) %>%
+  ggplot(aes(ra, `0`)) + geom_jitter() + facet_grid(TAM ~ FRAME) +
+  geom_hline(yintercept = 2) + geom_vline(xintercept = 2) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=-Inf, fill="blue", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=-Inf, ymin=2, ymax=Inf, fill="yellow", alpha=0.2)
+  
