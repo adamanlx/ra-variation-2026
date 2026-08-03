@@ -13,7 +13,6 @@ df <- read.csv('transformed_data.csv', header=T) %>%
     "Northwest",
     "Elsewhere"
   )) %>%
-  mutate(MORPHEME = relevel(as_factor(MORPHEME), "ra")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   mutate(SCALED_AWARENESS = scale(HAVE_YOU_HEARD_THIS)) %>%
@@ -21,7 +20,8 @@ df <- read.csv('transformed_data.csv', header=T) %>%
   mutate(TAM = factor(TAM, levels=c("HAB", "PROG", "FUT"))) %>%
   mutate(FRAME = factor(FRAME, levels=c(
     "INDfinal", "INDDP", "INDko", "INDngo", "NEG", "REL", "PTCP"
-  )))
+  ))) %>%
+  mutate(MORPHEME = factor(MORPHEME, levels=c("0", "ra", "p")))
 
 df_avg = df %>%
   group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
@@ -97,7 +97,7 @@ df_avg %>%
   summarize(COUNT = sum(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=FRAME, values_from=COUNT)
 
-# general trend: young men are rating both morphemes higher across the board
+# general trend: young men are rating everything higher across the board
 # the women do not show a similar age effect
 # no effects of region or dialect
 
@@ -105,13 +105,20 @@ summary(
   lmer(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
-    data = df %>%
-      filter(MORPHEME %in% c("ra", "0"))
+    data = df
   )
 )
 
+# if there's a general young men effect, why does AGE:GENDERmale not come out?
+
+# There was a significant effect of gender such that men rated ra-less verbs higher than women did.
+# This effect was attenuated with increasing age such that young men rated ra-less verbs higher.
+
+# There was also a significant interaction between gender and morpheme such that
+# men rated verbs with ra- LOWER(?) than women did. This effect was attenuated with increasing age
+# such that young men rated verbs with ra- higher.
+
 df %>%
-  filter(MORPHEME %in% c("ra", "0")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
@@ -119,21 +126,28 @@ df %>%
   labs(x="Age", y="Rating", color="Gender") +
   facet_wrap(~ MORPHEME)
 
+# When we analyzed responses in specific morphosyntactic environments broken out
+# by TAM and frame, we only found significant effects of demographic variables in
+# PROG/FUT negation.
 
-# when we break it out by frame, negation is the only one that comes
-# out as significant, suggesting negation could be driving the broader effect
+# There was a significant effect of gender such that men rated ra-less verbs higher than women.
+# This effect was attenuated by increasing age such that young men rated ra-less verbs higher.
+
+# There was a significant interaction of morpheme and gender such that men rated verbs with ra-
+# LOWER(?) than women. This effect was attenuated by increasing age such that young men
+# rated verbs with ra- higher.
 
 summary(
   lmer(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG")
+      filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
   )
 )
 
 df %>%
-  filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG") %>%
+  filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
