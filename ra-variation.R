@@ -17,16 +17,16 @@ df <- read.csv('transformed_data.csv', header=T) %>%
   mutate(GENDER = relevel(as_factor(GENDER), "male")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
-  mutate(SCALED_AWARENESS = scale(HAVE_YOU_HEARD_THIS))
+  mutate(SCALED_AWARENESS = scale(HAVE_YOU_HEARD_THIS)) %>%
+  mutate(FRAME = ifelse(FRAME == "PART", "PTCP", FRAME)) %>%
+  mutate(TAM = factor(TAM, levels=c("HAB", "PROG", "FUT"))) %>%
+  mutate(FRAME = factor(FRAME, levels=c(
+    "INDfinal", "INDDP", "INDko", "INDngo", "NEG", "REL", "PTCP"
+  )))
 
-df_avg <- df %>%
+df_avg = df %>%
   group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
-  dplyr::summarize(
-    WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
-    SCALED_WOULD_YOU_SAY_THIS = mean(SCALED_WOULD_YOU_SAY_THIS)
-  )
-
-# tag respondents based on whether they accept prog or fut
+  summarize(WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS))
 
 accepts_prog = df_avg %>%
   filter(TAM == "PROG", MORPHEME == "ra", FRAME == "INDfinal",
@@ -38,6 +38,43 @@ accepts_fut = df_avg %>%
          WOULD_YOU_SAY_THIS > 1) %>%
   pull(RESPONDENT_ID) %>%
   unique()
+
+# Descriptive stats
+
+df %>%
+  mutate(TAMMORPHEME = paste(TAM, MORPHEME)) %>%
+  group_by(TAMMORPHEME, FRAME) %>%
+  summarize(SCORE = mean(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=FRAME, values_from=SCORE)
+
+df_avg %>%
+  filter(MORPHEME != "p") %>%
+  filter(
+    (TAM == "HAB") |
+      (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) |
+      (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
+  ggplot(aes(ra, `0`)) + geom_jitter() + facet_grid(TAM ~ FRAME) +
+  geom_hline(yintercept = 2) + geom_vline(xintercept = 2) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=-Inf, fill="blue", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=-Inf, ymin=2, ymax=Inf, fill="yellow", alpha=0.2)
+
+df_avg %>%
+  filter(TAM == "PROG") %>%
+  mutate(MORPHEME = ifelse(MORPHEME %in% c("ra", "0"), "affix", "p")) %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  select(-TAM) %>%
+  summarize(MAX_SCORE = max(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=MAX_SCORE) %>%
+  ggplot(aes(affix, p)) + geom_jitter() + facet_wrap(~ FRAME) +
+  geom_hline(yintercept = 2) + geom_vline(xintercept = 2) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=-Inf, fill="blue", alpha=0.1) +
+  annotate("rect", xmin=2, xmax=-Inf, ymin=2, ymax=Inf, fill="yellow", alpha=0.2) +
+  xlab("highest score, either affixal strategy") + ylab("periphrastic")
+
+###################################
 
 # SECTION 5.3.2 OVERALL RESPONSES
 
@@ -445,20 +482,5 @@ df %>%
   arrange(EXPECTED_NO_VARIATION) %>%
   print(n=1000)
 
-df_avg %>%
-  filter(MORPHEME != "p") %>%
-  filter(
-    (TAM == "HAB") |
-    (TAM == "PROG" & RESPONDENT_ID %in% accepts_prog) |
-    (TAM == "FUT" & RESPONDENT_ID %in% accepts_fut)) %>%
-  select(-SCALED_WOULD_YOU_SAY_THIS) %>%
-  pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
-  mutate(TAM = factor(TAM, levels=c("HAB", "PROG", "FUT"))) %>%
-  mutate(FRAME = factor(FRAME, levels=c(
-    "INDfinal", "INDDP", "INDko", "INDngo", "NEG", "REL", "PART"))) %>%
-  ggplot(aes(ra, `0`)) + geom_jitter() + facet_grid(TAM ~ FRAME) +
-  geom_hline(yintercept = 2) + geom_vline(xintercept = 2) +
-  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=Inf, fill="green", alpha=0.1) +
-  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=-Inf, fill="blue", alpha=0.1) +
-  annotate("rect", xmin=2, xmax=-Inf, ymin=2, ymax=Inf, fill="yellow", alpha=0.2)
+
   
