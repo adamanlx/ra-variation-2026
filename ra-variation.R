@@ -22,10 +22,10 @@ df <- read.csv('transformed_data.csv', header=T) %>%
   mutate(FRAME = factor(FRAME, levels=c(
     "INDfinal", "INDDP", "INDko", "INDngo", "NEG", "REL", "PTCP"
   ))) %>%
-  mutate(MORPHEME = factor(MORPHEME, levels=c("0", "ra", "p"))) %>%
-  # picked ra as reference level since the slope is shallower -> want more about it
+  mutate(MORPHEME = ifelse(MORPHEME == "0", "CJ", MORPHEME)) %>%
+  mutate(MORPHEME = ifelse(MORPHEME == "p", "periphrastic", MORPHEME)) %>%
+  mutate(MORPHEME = factor(MORPHEME, levels=c("CJ", "ra", "periphrastic"))) %>%
   mutate(GENDER = factor(GENDER, levels=c("male", "female")))
-  # picked men as reference level bc story is about men
 
 df_avg = df %>%
   group_by(RESPONDENT_ID, TAM, MORPHEME, FRAME) %>%
@@ -43,28 +43,35 @@ df %>%
 # make this about researcher expectations vs. reality
 
 df_avg %>%
-  filter(MORPHEME != "p") %>%
+  filter(MORPHEME != "periphrastic") %>%
   select(-HAVE_YOU_HEARD_THIS) %>%
   pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
-  ggplot(aes(ra, `0`)) + geom_jitter() + facet_grid(TAM ~ FRAME) +
+  ggplot(aes(ra, CJ)) + geom_jitter() + facet_grid(TAM ~ FRAME, switch="y") +
   geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
   annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="green", alpha=0.1) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="blue", alpha=0.1) +
-  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="yellow", alpha=0.2)
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="green", alpha=0.1) +
+  labs(x = "score, ra-", y = "score, CJ")
 
 df_avg %>%
   filter(TAM == "PROG") %>%
-  mutate(MORPHEME = ifelse(MORPHEME %in% c("ra", "0"), "affix", "p")) %>%
+  mutate(MORPHEME = ifelse(MORPHEME %in% c("ra", "CJ"), "affix", "periphrastic")) %>%
   group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
   select(-TAM) %>%
   summarize(MAX_SCORE = max(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=MORPHEME, values_from=MAX_SCORE) %>%
-  ggplot(aes(affix, p)) + geom_jitter() + facet_wrap(~ FRAME) +
-  geom_hline(yintercept = 2) + geom_vline(xintercept = 2) +
-  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=Inf, fill="green", alpha=0.1) +
-  annotate("rect", xmin=2, xmax=Inf, ymin=2, ymax=-Inf, fill="blue", alpha=0.1) +
-  annotate("rect", xmin=2, xmax=-Inf, ymin=2, ymax=Inf, fill="yellow", alpha=0.2) +
-  xlab("highest score, either affixal strategy") + ylab("periphrastic")
+  ggplot(aes(affix, periphrastic)) + geom_jitter() + facet_wrap(~ FRAME) +
+  geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
+  xlab("highest average score, either affixal strategy") + ylab("score, periphrastic")
+
+# oh wow, some participants seem to not like any strategy for PROG REL. how many?
+
+df_avg %>%
+  filter(TAM == "PROG", FRAME == "REL") %>%
+  select(-c(HAVE_YOU_HEARD_THIS, FRAME)) %>%
+  pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
+  filter(CJ < 3, ra < 3, periphrastic < 3) %>%
+  nrow()
 
 # awareness: slightly looser version of what you would yourself say
 # no pattern to the ones where people said "I've heard this but don't say it"
@@ -72,7 +79,7 @@ df_avg %>%
 df %>%
   ggplot(aes(WOULD_YOU_SAY_THIS, HAVE_YOU_HEARD_THIS))+
   geom_jitter() +
-  labs(x="scaled acceptance scores", y="scaled awareness scores")
+  labs(x="acceptance scores", y="awareness scores")
 
 summary(
   lmer(
@@ -89,18 +96,39 @@ df_avg %>%
   summarize(COUNT = sum(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=FRAME, values_from=COUNT)
 
-# general trend: young men are rating everything higher across the board
-# the women do not show a similar age effect
-# no effects of region or dialect
+############################
 
 summary(
   lmer(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
-    data = df %>% filter(MORPHEME != "p")
+    data = df %>% filter(MORPHEME != "periphrastic")
   )
 )
-# filter out p so it doesn't correct for an additional thing
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * GENDER * relevel(MORPHEME, "ra") + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>% filter(MORPHEME != "periphrastic")
+  )
+)
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * relevel(GENDER, "female") * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>% filter(MORPHEME != "periphrastic")
+  )
+)
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * relevel(GENDER, "female") * relevel(MORPHEME, "ra") + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>% filter(MORPHEME != "periphrastic")
+  )
+)
 
 # over time,
 # men come to like both ra and 0
@@ -123,7 +151,7 @@ emtrends(
   lmer(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | FRAME) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
-    data = df %>% filter(MORPHEME != "p")
+    data = df %>% filter(MORPHEME != "periphrastic")
   ),
   pairwise ~ MORPHEME | GENDER,
   var = "AGE"
@@ -134,7 +162,7 @@ df %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
   geom_jitter() + geom_smooth(method="lm", se=TRUE) +
-  labs(x="Age", y="Rating", color="Gender") +
+  labs(x="age", y="acceptance score", color="gender") +
   facet_wrap(~ MORPHEME)
 
 # When we analyzed responses in specific morphosyntactic environments broken out
@@ -162,7 +190,7 @@ summary(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
+      filter(MORPHEME %in% c("ra", "CJ"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
   )
 )
 
@@ -171,7 +199,16 @@ summary(
     WOULD_YOU_SAY_THIS
     ~ AGE * GENDER * relevel(MORPHEME, "ra") + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
+      filter(MORPHEME %in% c("ra", "CJ"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
+  )
+)
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * relevel(GENDER, "female") * MORPHEME + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>%
+      filter(MORPHEME %in% c("ra", "CJ"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
   )
 )
 
@@ -180,15 +217,15 @@ summary(
     WOULD_YOU_SAY_THIS
     ~ AGE * relevel(GENDER, "female") * relevel(MORPHEME, "ra") + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
     data = df %>%
-      filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
+      filter(MORPHEME %in% c("ra", "CJ"), FRAME == "NEG", TAM %in% c("PROG", "FUT"))
   )
 )
 
 df %>%
-  filter(MORPHEME %in% c("ra", "0"), FRAME == "NEG", TAM %in% c("PROG", "FUT")) %>%
+  filter(MORPHEME %in% c("ra", "CJ"), FRAME == "NEG", TAM %in% c("PROG", "FUT")) %>%
   group_by(RESPONDENT_ID) %>%
   mutate(SCALED_WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
   geom_jitter() + geom_smooth(method="lm", se=TRUE) +
-  labs(x="Age", y="Rating", color="Gender") +
+  labs(x="age", y="rating", color="gender") +
   facet_wrap(~ MORPHEME)
