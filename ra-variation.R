@@ -229,3 +229,16 @@ df %>%
   geom_jitter() + geom_smooth(method="lm", se=TRUE) +
   labs(x="age", y="rating", color="gender") +
   facet_wrap(~ MORPHEME)
+
+# Discussion
+
+df_avg %>%
+  filter(
+    TAM %in% c("PROG", "FUT"),
+    FRAME %in% c("NEG", "REL", "PTCP"),
+    MORPHEME == "ra",
+    WOULD_YOU_SAY_THIS >= 3
+  ) %>%
+  group_by(TAM, FRAME) %>%
+  summarize(COUNT = n()) %>%
+  pivot_wider(names_from=FRAME, values_from=COUNT)
