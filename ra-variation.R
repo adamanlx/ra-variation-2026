@@ -48,8 +48,8 @@ df_avg %>%
   pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
   ggplot(aes(ra, CJ)) + geom_jitter() + facet_grid(TAM ~ FRAME, switch="y") +
   geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="green", alpha=0.1) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="green", alpha=0) +
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0) +
   annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="green", alpha=0.1) +
   labs(x = "score, ra-", y = "score, CJ")
 
