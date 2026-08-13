@@ -40,18 +40,38 @@ df %>%
   summarize(SCORE = mean(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=FRAME, values_from=SCORE)
 
-# make this about researcher expectations vs. reality
+df_means <- df_avg %>%
+  group_by(TAM, MORPHEME, FRAME) %>%
+  summarize(
+    WOULD_YOU_SAY_THIS = mean(WOULD_YOU_SAY_THIS),
+    HAVE_YOU_HEARD_THIS = mean(HAVE_YOU_HEARD_THIS)) %>%
+  mutate(TYPE = "mean")
 
-df_avg %>%
+rbind(df_avg, df_means) %>%
   filter(MORPHEME != "periphrastic") %>%
   select(-HAVE_YOU_HEARD_THIS) %>%
   pivot_wider(names_from=MORPHEME, values_from=WOULD_YOU_SAY_THIS) %>%
-  ggplot(aes(ra, CJ)) + geom_jitter() + facet_grid(TAM ~ FRAME, switch="y") +
+  ggplot(aes(ra, CJ, color=TYPE)) + 
+  geom_jitter(width=0.2, height=0.2, aes(shape=TYPE)) +
+  facet_grid(TAM ~ FRAME, switch="y") +
   geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
   annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="green", alpha=0) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0) +
-  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="green", alpha=0.1) +
-  labs(x = "score, ra-", y = "score, CJ")
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0.1) +
+  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="green", alpha=0) +
+  labs(x = "score, ra-", y = "score, CJ") +
+  scale_color_manual(
+    values = c(
+      "mean" = "red"
+    ),
+    na.value = "black"
+  ) +
+  scale_shape_manual(
+    values = c(
+      "mean" = 15
+    ),
+    na.value = 16
+  ) +
+  theme(legend.position = "none")
 
 df_avg %>%
   filter(TAM == "PROG") %>%
