@@ -73,16 +73,30 @@ rbind(df_avg, df_means) %>%
   ) +
   theme(legend.position = "none")
 
-df_avg %>%
+rbind(df_avg, df_means) %>%
   filter(TAM == "PROG") %>%
   mutate(MORPHEME = ifelse(MORPHEME %in% c("ra", "CJ"), "affix", "periphrastic")) %>%
-  group_by(RESPONDENT_ID, MORPHEME, FRAME) %>%
+  group_by(RESPONDENT_ID, MORPHEME, FRAME, TYPE) %>%
   select(-TAM) %>%
   summarize(MAX_SCORE = max(WOULD_YOU_SAY_THIS)) %>%
   pivot_wider(names_from=MORPHEME, values_from=MAX_SCORE) %>%
-  ggplot(aes(affix, periphrastic)) + geom_jitter() + facet_wrap(~ FRAME) +
+  ggplot(aes(affix, periphrastic, color=TYPE)) +
+  geom_jitter(width=0.2, height=0.2, aes(shape=TYPE)) + facet_wrap(~ FRAME) +
   geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
-  xlab("highest average score, either affixal strategy") + ylab("score, periphrastic")
+  xlab("highest average score, either affixal strategy") + ylab("score, periphrastic") +
+  scale_color_manual(
+    values = c(
+      "mean" = "red"
+    ),
+    na.value = "black"
+  ) +
+  scale_shape_manual(
+    values = c(
+      "mean" = 15
+    ),
+    na.value = 16
+  ) +
+  theme(legend.position = "none")
 
 # oh wow, some participants seem to not like any strategy for PROG REL. how many?
 
