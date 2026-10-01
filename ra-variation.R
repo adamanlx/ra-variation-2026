@@ -112,7 +112,7 @@ df_avg %>%
 
 df %>%
   ggplot(aes(WOULD_YOU_SAY_THIS, HAVE_YOU_HEARD_THIS))+
-  geom_jitter() +
+  geom_jitter() + geom_smooth(method="lm", se=FALSE) +
   labs(x="acceptance scores", y="awareness scores")
 
 summary(
@@ -264,6 +264,18 @@ df %>%
   labs(x="age", y="rating", color="gender") +
   facet_wrap(~ MORPHEME)
 
+# what about everywhere that ISN'T prog/fut negation?
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS
+    ~ AGE * GENDER * MORPHEME + (1 | TAM) + (1 | CONDITION_NAME) + (1 | RESPONDENT_ID),
+    data = df %>%
+      filter(MORPHEME %in% c("ra", "CJ")) %>%
+      filter((FRAME == "NEG" & TAM %in% c("PROG", "FUT")) == FALSE)
+  )
+)
+
 # Discussion
 
 df_avg %>%
@@ -276,3 +288,44 @@ df_avg %>%
   group_by(TAM, FRAME) %>%
   summarize(COUNT = n()) %>%
   pivot_wider(names_from=FRAME, values_from=COUNT)
+
+summary(
+  lmer(
+    REL ~ NEG + (1 | RESPONDENT_ID) + (1 | TAM), data=df_avg %>%
+      group_by(RESPONDENT_ID) %>%
+      mutate(WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
+      filter(TAM %in% c("PROG", "FUT")) %>%
+      filter(MORPHEME == "CJ") %>%
+      filter(FRAME %in% c("NEG", "PTCP", "REL")) %>%
+      select(-HAVE_YOU_HEARD_THIS) %>%
+      pivot_wider(names_from=FRAME, values_from=WOULD_YOU_SAY_THIS)
+  )
+)
+
+df_avg %>%
+  filter(TAM %in% c("PROG", "FUT")) %>%
+  filter(MORPHEME == "CJ") %>%
+  filter(FRAME %in% c("NEG", "PTCP", "REL")) %>%
+  select(-HAVE_YOU_HEARD_THIS) %>%
+  group_by(RESPONDENT_ID) %>%
+  mutate(WOULD_YOU_SAY_THIS = scale(WOULD_YOU_SAY_THIS)) %>%
+  pivot_wider(names_from=FRAME, values_from=WOULD_YOU_SAY_THIS)
+
+summary(
+  lmer(
+    WOULD_YOU_SAY_THIS ~ MORPHEME + (1 | RESPONDENT_ID) + (1 | TAM),
+    data= df %>%
+      filter(
+        TAM %in% c("PROG", "FUT"),
+        MORPHEME %in% c("CJ", "ra"),
+        FRAME == "PTCP"
+      )
+  )
+)
+
+df %>%
+  filter(
+    TAM %in% c("PROG", "FUT"),
+    MORPHEME %in% c("CJ", "ra"),
+    FRAME == "NEG"
+  )
