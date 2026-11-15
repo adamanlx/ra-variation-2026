@@ -187,6 +187,10 @@ Practice stimuli were presented using the same format as experimental stimuli as
 
 # Experimental stimuli
 
+**IGIHE: mu kanya** (TIME: in a moment)
+
+Abagore **barya** ibitoki. (The women eat plantains.)
+
 Twibanze ku nshinga, wowe ubwawe ushobora kuvuga interuro nk'iyi mu gihe urimo kuvuga ikintu kiba mugihe wahawe? (Focusing on the verb, would you yourself say the sentence like this when describing something happening at the given time?) (multiple-choice question)
 
 1. Buri gihe ni ko nayivuga. (I would always say the sentence like that.)
