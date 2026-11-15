@@ -4,6 +4,8 @@ Adam An and Jean Paul Ngoboka
 
 ## Survey 1
 
+`survey_1_design.md` contains survey questions as presented to participants and English translations.
+
 `survey_1_responses.csv` contains data as exported from Google Forms with identifying information removed.
 
 ## Survey 2
