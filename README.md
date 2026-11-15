@@ -2,6 +2,10 @@
 
 Adam An and Jean Paul Ngoboka
 
+## Survey 1
+
+`survey_1_responses.csv` contains data as exported from Google Forms with identifying information removed.
+
 ## Survey 2
 
 ### Survey design and `raw_anonymized_data.csv`
