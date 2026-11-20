@@ -148,11 +148,20 @@ Ushobora gusubiza mu kinyarwanda cyangwa mu cyongereza. (You may answer in Kinya
 
 Interuro ni izi: (Here is a sentence:)
 
-(sentence 1)
+(sentence a)
 
 Abantu bamwe interuro imwe bashobora kuyivuga ku buryo bukurikira: (Some people might say the same sentence like this:)
 
-(sentence 2)
+(sentence b)
+
+Sentences were as follows:
+
+|variable of interest|sentence a|sentence b|
+|-|-|-|
+|CJ verbs before *ngo*|Ejo, waravuze ngo, "hanze hijimye."|Ejo, wavuze ngo, "hanze hijimye."|
+|progressive *ra-* in negation|Aka kanya, imvura ntiri kugwa.|Aka kanya, imvura ntiragwa.|
+|periphrastic|Aka kanya, ndatekereza.|Aka kanya, ndi gutekereza.|
+|*g-*|Umwembe umwe waguye hasi.|Umwembe gumwe gwaguye hasi.|
 
 Wowe ubwawe, interuro ya kabiri wayivuga? (Would you yourself say the second sentence?)
 
