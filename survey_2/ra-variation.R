@@ -61,7 +61,13 @@ df %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
   geom_jitter() + geom_smooth(method="lm", se=TRUE) +
   labs(x="age", y="acceptance score", color="gender") +
-  facet_wrap(~ MORPHEME)
+  facet_wrap(~ MORPHEME) +
+  scale_color_manual(
+    values = c(
+      "male" = "#666",
+      "female" = "black"
+    )
+  )
 
 # todo: redo in emtrends?
 summary(
@@ -142,7 +148,13 @@ df %>%
   ggplot(aes(AGE, WOULD_YOU_SAY_THIS, color=relevel(as_factor(GENDER), "female"))) +
   geom_jitter() + geom_smooth(method="lm", se=TRUE) +
   labs(x="age", y="rating", color="gender") +
-  facet_wrap(~ MORPHEME)
+  facet_wrap(~ MORPHEME) +
+  scale_color_manual(
+    values = c(
+      "male" = "#666",
+      "female" = "black"
+    )
+  )
 
 # everywhere that ISN'T prog/fut negation
 summary(
@@ -176,15 +188,15 @@ rbind(df_avg, df_means) %>%
   geom_jitter(width=0.2, height=0.2, aes(shape=TYPE)) +
   facet_grid(TAM ~ FRAME, switch="y") +
   geom_hline(yintercept = 3) + geom_vline(xintercept = 3) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="green", alpha=0) +
-  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="green", alpha=0.1) +
-  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="green", alpha=0) +
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=Inf, fill="#000", alpha=0.1) +
+  annotate("rect", xmin=3, xmax=Inf, ymin=3, ymax=-Inf, fill="#000", alpha=0.1) +
+  annotate("rect", xmin=3, xmax=-Inf, ymin=3, ymax=Inf, fill="#000", alpha=0) +
   labs(x = "score, ra-", y = "score, CJ") +
   scale_color_manual(
     values = c(
-      "mean" = "red"
+      "mean" = "black"
     ),
-    na.value = "black"
+    na.value = "#666"
   ) +
   scale_shape_manual(
     values = c(
@@ -208,9 +220,9 @@ rbind(df_avg, df_means) %>%
   xlab("highest average score, either affixal strategy") + ylab("score, periphrastic") +
   scale_color_manual(
     values = c(
-      "mean" = "red"
+      "mean" = "black"
     ),
-    na.value = "black"
+    na.value = "#666"
   ) +
   scale_shape_manual(
     values = c(
@@ -232,7 +244,7 @@ df_avg %>%
 
 df %>%
   ggplot(aes(WOULD_YOU_SAY_THIS, HAVE_YOU_HEARD_THIS))+
-  geom_jitter() + geom_smooth(method="lm", se=FALSE) +
+  geom_jitter(color="#666") + geom_smooth(method="lm", se=FALSE, color="black") +
   labs(x="acceptance scores", y="awareness scores")
 
 summary(
